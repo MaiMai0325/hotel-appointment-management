@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>森下ホテル 予約管理</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="page-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Hotel Inventory Desk</p>
+        <h1>森下ホテル 予約管理サイト</h1>
+        <p class="hero-copy">
+          森下ホテルの空室管理、予約受付、sold out 表示、Excelに近い運用の確認を1つの画面で行えます。
+        </p>
+      </div>
+      <div class="hero-card">
+        <p class="hero-card-label">今日の在庫サマリー</p>
+        <div id="todaySummary" class="hero-card-value">読み込み中...</div>
+      </div>
+    </header>
+
+    <main class="dashboard">
+      <section class="panel compact-panel wide">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker">0. 基本設定</p>
+            <h2>ホテル情報</h2>
+          </div>
+        </div>
+        <form id="settingsForm" class="settings-row">
+          <div class="hotel-name-chip">森下ホテル</div>
+          <label>
+            <span>総部屋数</span>
+            <input type="number" id="totalRooms" min="1" value="6" required disabled>
+          </label>
+          <label>
+            <span>管理用パスワード</span>
+            <input type="password" id="settingsPassword" placeholder="パスワードを入力">
+          </label>
+          <button type="button" id="unlockSettingsBtn" class="button secondary">ロック解除</button>
+          <button type="submit" class="button secondary">設定を保存</button>
+        </form>
+        <div id="settingsFeedback" class="settings-feedback">現在は 6 部屋で設定しています。</div>
+        <p class="settings-feedback">在庫はExcel連携データを使う前提にして、手入力欄は画面から外しています。</p>
+        <p class="settings-feedback">最新のExcelを反映するときは、このフォルダの <code>sync-and-open.bat</code> を実行してください。</p>
+      </section>
+
+      <section class="tabs-shell wide">
+        <div class="tab-row">
+          <button class="tab-button active" data-tab="reservations">予約管理</button>
+          <button class="tab-button" data-tab="todayOps">本日の運用</button>
+          <button class="tab-button" data-tab="monthly">月次まとめ</button>
+          <button class="tab-button" data-tab="comparison">月比較</button>
+          <button class="tab-button" data-tab="faq">定型文</button>
+        </div>
+
+        <div class="tab-panel active" data-panel="reservations">
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">1. 空室確認</p>
+                <h2>予約前チェック</h2>
+              </div>
+            </div>
+            <form id="availabilityForm" class="grid-form">
+              <label>
+                <span>チェックイン</span>
+                <input type="date" id="checkIn" required>
+              </label>
+              <label>
+                <span>チェックアウト</span>
+                <input type="date" id="checkOut" required>
+              </label>
+              <label>
+                <span>人数</span>
+                <select id="guestCount" required>
+                  <option value="1">1人</option>
+                  <option value="2">2人</option>
+                  <option value="3">3人</option>
+                  <option value="4">4人</option>
+                </select>
+              </label>
+              <button type="submit" class="button primary">候補を探す</button>
+            </form>
+            <div id="availabilityResult" class="result-card"></div>
+          </section>
+
+          <section class="panel">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">2. 予約確定</p>
+                <h2>予約登録</h2>
+              </div>
+            </div>
+            <form id="bookingForm" class="grid-form">
+              <label>
+                <span>予約者名</span>
+                <input type="text" id="guestName" placeholder="例: 田中様" required>
+              </label>
+              <label>
+                <span>チェックイン</span>
+                <input type="date" id="bookCheckIn" required>
+              </label>
+              <label>
+                <span>チェックアウト</span>
+                <input type="date" id="bookCheckOut" required>
+              </label>
+              <label>
+                <span>部屋番号</span>
+                <select id="bookRoomType"></select>
+              </label>
+              <label>
+                <span>人数</span>
+                <select id="bookGuestCount" required>
+                  <option value="1">1人</option>
+                  <option value="2">2人</option>
+                  <option value="3">3人</option>
+                  <option value="4">4人</option>
+                </select>
+              </label>
+              <button type="submit" class="button accent">予約を確定する</button>
+            </form>
+            <div id="bookingFeedback" class="result-card"></div>
+          </section>
+
+          <section class="panel wide">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">3. 運用状況</p>
+                <h2>在庫カレンダー</h2>
+              </div>
+              <div class="calendar-controls">
+                <label class="inline-select">
+                  <span>年</span>
+                  <select id="calendarYearSelect"></select>
+                </label>
+                <label class="inline-select">
+                  <span>月</span>
+                  <select id="calendarMonthSelect"></select>
+                </label>
+                <button id="downloadBookingsBtn" class="button secondary">予約CSVを書き出す</button>
+              </div>
+            </div>
+            <div id="calendarGrid" class="calendar-grid"></div>
+          </section>
+
+          <section class="panel wide">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">4. 予約一覧</p>
+                <h2>確定済みの予約</h2>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>予約者名</th>
+                    <th>部屋番号</th>
+                    <th>チェックイン</th>
+                    <th>チェックアウト</th>
+                    <th>宿泊日数</th>
+                  </tr>
+                </thead>
+                <tbody id="bookingTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <div class="tab-panel" data-panel="todayOps">
+          <section class="panel wide">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Today</p>
+                <h2>本日の運用一覧</h2>
+              </div>
+            </div>
+            <div class="ops-summary-grid">
+              <article class="ops-card">
+                <p class="ops-label">本日宿泊中</p>
+                <div id="todayStayingCount" class="ops-value">0</div>
+              </article>
+              <article class="ops-card">
+                <p class="ops-label">本日チェックイン</p>
+                <div id="todayCheckInCount" class="ops-value">0</div>
+              </article>
+              <article class="ops-card">
+                <p class="ops-label">本日チェックアウト</p>
+                <div id="todayCheckOutCount" class="ops-value">0</div>
+              </article>
+              <article class="ops-card">
+                <p class="ops-label">本日の清掃対象</p>
+                <div id="todayCleaningCount" class="ops-value">0</div>
+              </article>
+            </div>
+            <div class="ops-list-grid">
+              <article class="panel inset-panel">
+                <h3>本日宿泊中</h3>
+                <div id="todayStayingList" class="status-list"></div>
+              </article>
+              <article class="panel inset-panel">
+                <h3>本日チェックイン</h3>
+                <div id="todayCheckInList" class="status-list"></div>
+              </article>
+              <article class="panel inset-panel">
+                <h3>本日チェックアウト</h3>
+                <div id="todayCheckOutList" class="status-list"></div>
+              </article>
+              <article class="panel inset-panel">
+                <h3>本日の清掃対象</h3>
+                <div id="todayCleaningList" class="status-list"></div>
+              </article>
+            </div>
+          </section>
+        </div>
+
+        <div class="tab-panel" data-panel="monthly">
+          <section class="panel wide">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Monthly</p>
+                <h2>月次まとめ・報告</h2>
+              </div>
+              <label class="inline-select">
+                <span>対象月</span>
+                <select id="monthSelect"></select>
+              </label>
+            </div>
+            <div class="ops-summary-grid">
+              <article class="ops-card">
+                <p class="ops-label">月間入居率</p>
+                <div id="monthOccupancy" class="ops-value">0%</div>
+              </article>
+              <article class="ops-card">
+                <p class="ops-label">予約件数</p>
+                <div id="monthBookings" class="ops-value">0</div>
+              </article>
+              <article class="ops-card">
+                <p class="ops-label">平均空室数/日</p>
+                <div id="monthVacancyAverage" class="ops-value">0</div>
+              </article>
+              <article class="ops-card">
+                <p class="ops-label">清掃回数</p>
+                <div id="monthCleaningCount" class="ops-value">0</div>
+              </article>
+              <article class="ops-card">
+                <p class="ops-label">チェックイン数</p>
+                <div id="monthCheckInCount" class="ops-value">0</div>
+              </article>
+              <article class="ops-card">
+                <p class="ops-label">チェックアウト数</p>
+                <div id="monthCheckOutCount" class="ops-value">0</div>
+              </article>
+            </div>
+            <div id="monthNarrative" class="result-card"></div>
+          </section>
+        </div>
+
+        <div class="tab-panel" data-panel="comparison">
+          <section class="panel wide">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">Compare</p>
+                <h2>各月の比較</h2>
+              </div>
+            </div>
+            <div class="compare-row">
+              <label class="inline-select">
+                <span>月1</span>
+                <select id="compareMonthA"></select>
+              </label>
+              <label class="inline-select">
+                <span>月2</span>
+                <select id="compareMonthB"></select>
+              </label>
+            </div>
+            <div id="comparisonNarrative" class="result-card"></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>項目</th>
+                    <th id="compareHeaderA">月1</th>
+                    <th id="compareHeaderB">月2</th>
+                  </tr>
+                </thead>
+                <tbody id="comparisonTableBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <div class="tab-panel" data-panel="faq">
+          <section class="panel wide">
+            <div class="section-heading">
+              <div>
+                <p class="section-kicker">6. 接客サポート</p>
+                <h2>質問への定型文</h2>
+              </div>
+            </div>
+            <p class="muted">
+              利用者からよく聞かれる質問に対して、すぐ返せる文章をまとめています。
+            </p>
+            <div id="faqTemplates" class="faq-list"></div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <section class="hidden-source" aria-hidden="true">
+    <textarea id="inventoryInput" rows="1" spellcheck="false">2026-04-25	101	1
+2026-04-25	102	1
+2026-04-25	201	1
+2026-04-25	202	1
+2026-04-25	301	1
+2026-04-25	302	1</textarea>
+    <button id="loadInventoryBtn" type="button">hidden load</button>
+    <button id="downloadInventoryBtn" type="button">hidden download</button>
+  </section>
+
+  <script src="preloaded-data.js?v=20260425g"></script>
+  <script src="script.js?v=20260425g"></script>
+</body>
+</html>
