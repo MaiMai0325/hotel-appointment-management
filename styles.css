@@ -350,6 +350,7 @@ textarea {
 
 .calendar-overview {
   padding: 16px;
+  overflow: hidden;
 }
 
 .calendar-legend {
@@ -387,9 +388,12 @@ textarea {
 }
 
 .calendar-matrix-wrap {
-  overflow-x: auto;
+  max-height: 68vh;
+  overflow: auto;
   border: 1px solid #eadcc8;
   border-radius: 18px;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .calendar-matrix {
@@ -615,6 +619,17 @@ td {
 th {
   color: var(--muted);
   font-size: 0.92rem;
+}
+
+.booking-inline-input {
+  min-width: 140px;
+  padding: 8px 10px;
+}
+
+.booking-action-cell {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 @media (max-width: 900px) {

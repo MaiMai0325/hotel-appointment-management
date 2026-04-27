@@ -23,6 +23,10 @@ const roomCapacities = {
 
 const cannedReplies = [
   {
+    question: "Airbnbの掲載ページはありますか？",
+    answer: "はい、Airbnbの掲載ページはこちらです。 https://www.airbnb.jp/rooms/1634547511797444361?unique_share_id=5d4f20cd-9444-4730-af29-d416ade8544b&viralityEntryPoint=1&s=76",
+  },
+  {
     question: "エレベーターはありますか？",
     answer: "エレベーターはありませんが、空き状況に応じて1階や2階のお部屋を優先してご案内できます。",
   },
@@ -597,13 +601,35 @@ function renderBookings() {
     .map((booking) => `
       <tr>
         <td>${booking.guest}</td>
-        <td>${booking.source || "-"}</td>
+        <td>
+          <input
+            type="text"
+            class="booking-inline-input"
+            data-booking-field="source"
+            data-booking-id="${booking.id}"
+            value="${booking.source || ""}"
+            list="bookingSourceOptions"
+            placeholder="予約元"
+          >
+        </td>
         <td>${booking.type}号室</td>
         <td>${booking.checkIn}</td>
         <td>${booking.checkOut}</td>
         <td>${nightsBetween(booking.checkIn, booking.checkOut).length}泊 / ${booking.guestTotal}人</td>
-        <td>${booking.memo || "-"}</td>
-        <td><button type="button" class="button secondary" onclick="window.cancelBookingById('${booking.id}')">取り消し</button></td>
+        <td>
+          <input
+            type="text"
+            class="booking-inline-input"
+            data-booking-field="memo"
+            data-booking-id="${booking.id}"
+            value="${booking.memo || ""}"
+            placeholder="あとからメモ追加"
+          >
+        </td>
+        <td class="booking-action-cell">
+          <button type="button" class="button secondary" onclick="window.saveBookingMeta('${booking.id}')">保存</button>
+          <button type="button" class="button secondary" onclick="window.cancelBookingById('${booking.id}')">取り消し</button>
+        </td>
       </tr>
     `)
     .join("");
@@ -828,9 +854,10 @@ function focusTabPanel(tabName) {
   }
 
   window.requestAnimationFrame(() => {
-    targetPanel.scrollIntoView({
+    const targetTop = targetPanel.getBoundingClientRect().top + window.scrollY - 12;
+    window.scrollTo({
+      top: Math.max(targetTop, 0),
       behavior: "smooth",
-      block: "start",
     });
   });
 }
@@ -1019,7 +1046,24 @@ function cancelBookingById(bookingId) {
   setResult(bookingFeedback, `${targetBooking.guest}様の予約を取り消しました。`, "ok");
 }
 
+function saveBookingMeta(bookingId) {
+  const sourceInput = document.querySelector(`[data-booking-field="source"][data-booking-id="${bookingId}"]`);
+  const memoInput = document.querySelector(`[data-booking-field="memo"][data-booking-id="${bookingId}"]`);
+  const booking = state.bookings.find((item) => item.id === bookingId);
+
+  if (!booking || !sourceInput || !memoInput) {
+    return;
+  }
+
+  booking.source = sourceInput.value.trim();
+  booking.memo = memoInput.value.trim();
+  saveState();
+  renderAll();
+  setResult(bookingFeedback, `${booking.guest}様の予約情報を更新しました。`, "ok");
+}
+
 window.cancelBookingById = cancelBookingById;
+window.saveBookingMeta = saveBookingMeta;
 
 tabButtons.forEach((button) => {
   button.addEventListener("click", () => {
