@@ -121,8 +121,24 @@
                   <option value="4">4人</option>
                 </select>
               </label>
+              <label>
+                <span>予約元</span>
+                <input type="text" id="bookingSource" list="bookingSourceOptions" placeholder="Airbnb / Booking.com / Expedia">
+              </label>
+              <label class="wide-field">
+                <span>予約メモ</span>
+                <input type="text" id="bookingMemo" placeholder="例: 加湿器希望、タオル多め、子ども連れ">
+              </label>
               <button type="submit" class="button accent">予約を確定する</button>
             </form>
+            <datalist id="bookingSourceOptions">
+              <option value="Airbnb"></option>
+              <option value="Booking.com"></option>
+              <option value="Expedia"></option>
+              <option value="じゃらん"></option>
+              <option value="楽天トラベル"></option>
+              <option value="直接予約"></option>
+            </datalist>
             <div id="bookingFeedback" class="result-card"></div>
           </section>
 
@@ -141,10 +157,27 @@
                   <span>月</span>
                   <select id="calendarMonthSelect"></select>
                 </label>
+                <button id="downloadCalendarPdfBtn" class="button secondary" type="button">カレンダーPDF</button>
                 <button id="downloadBookingsBtn" class="button secondary">予約CSVを書き出す</button>
               </div>
             </div>
             <div id="calendarGrid" class="calendar-grid"></div>
+            <form id="calendarNoteForm" class="grid-form calendar-note-form">
+              <label>
+                <span>メモ日付</span>
+                <input type="date" id="noteDate" required>
+              </label>
+              <label>
+                <span>部屋番号</span>
+                <select id="noteRoom"></select>
+              </label>
+              <label class="wide-field">
+                <span>注釈メモ</span>
+                <input type="text" id="noteText" placeholder="例: 荷物先預かり、加湿器、遅めチェックイン">
+              </label>
+              <button type="submit" class="button secondary">注釈を保存</button>
+            </form>
+            <div id="calendarNoteFeedback" class="result-card"></div>
           </section>
 
           <section class="panel wide">
@@ -159,10 +192,13 @@
                 <thead>
                   <tr>
                     <th>予約者名</th>
+                    <th>予約元</th>
                     <th>部屋番号</th>
                     <th>チェックイン</th>
                     <th>チェックアウト</th>
                     <th>宿泊日数</th>
+                    <th>メモ</th>
+                    <th>操作</th>
                   </tr>
                 </thead>
                 <tbody id="bookingTableBody"></tbody>
@@ -323,7 +359,7 @@
     <button id="downloadInventoryBtn" type="button">hidden download</button>
   </section>
 
-  <script src="preloaded-data.js?v=20260425g"></script>
-  <script src="script.js?v=20260425g"></script>
+  <script src="preloaded-data.js?v=20260427f"></script>
+  <script src="script.js?v=20260427f"></script>
 </body>
 </html>

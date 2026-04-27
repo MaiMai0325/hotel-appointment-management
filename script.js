@@ -1,5 +1,5 @@
 const STORAGE_KEY = "hotel-dashboard-state";
-const DEFAULT_SETTINGS_PASSWORD = "morishita2026";
+const DEFAULT_SETTINGS_PASSWORD = "inexus12345";
 
 const state = {
   settings: {
@@ -7,6 +7,7 @@ const state = {
   },
   inventory: [],
   bookings: [],
+  notes: [],
 };
 
 const roomCapacities = {
@@ -57,7 +58,15 @@ const bookingFeedback = document.getElementById("bookingFeedback");
 const guestCount = document.getElementById("guestCount");
 const bookRoomType = document.getElementById("bookRoomType");
 const bookGuestCount = document.getElementById("bookGuestCount");
+const bookingSource = document.getElementById("bookingSource");
+const bookingMemo = document.getElementById("bookingMemo");
 const calendarGrid = document.getElementById("calendarGrid");
+const calendarNoteForm = document.getElementById("calendarNoteForm");
+const calendarNoteFeedback = document.getElementById("calendarNoteFeedback");
+const noteDate = document.getElementById("noteDate");
+const noteRoom = document.getElementById("noteRoom");
+const noteText = document.getElementById("noteText");
+const downloadCalendarPdfBtn = document.getElementById("downloadCalendarPdfBtn");
 const bookingTableBody = document.getElementById("bookingTableBody");
 const todaySummary = document.getElementById("todaySummary");
 const faqTemplates = document.getElementById("faqTemplates");
@@ -133,6 +142,28 @@ function saveState() {
   safeLocalStorageSet(JSON.stringify(state));
 }
 
+function createBookingId() {
+  return `booking-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
+}
+
+function ensureBookingIds() {
+  let changed = false;
+  state.bookings = state.bookings.map((booking) => {
+    if (booking.id) {
+      return booking;
+    }
+    changed = true;
+    return {
+      ...booking,
+      id: createBookingId(),
+    };
+  });
+
+  if (changed) {
+    saveState();
+  }
+}
+
 function getPreloadedInventory() {
   const inventory = window.MORISHITA_PRELOADED_DATA?.inventory;
   return Array.isArray(inventory) ? inventory : [];
@@ -157,9 +188,11 @@ function loadState() {
     };
     state.inventory = preloaded.length ? preloaded : (parsed.inventory || []);
     state.bookings = Array.isArray(parsed.bookings) ? parsed.bookings : [];
+    state.notes = Array.isArray(parsed.notes) ? parsed.notes : [];
   } catch (error) {
     state.inventory = preloaded.length ? preloaded : parseInventory(inventoryInput.value);
     state.bookings = [];
+    state.notes = [];
   }
 
   totalRoomsInput.value = state.settings.totalRooms;
@@ -172,6 +205,14 @@ function getRoomTypes() {
 
 function getRoomCapacity(room) {
   return roomCapacities[String(room)] || 0;
+}
+
+function getNoteKey(date, room) {
+  return `${date}|${room}`;
+}
+
+function getNoteMap() {
+  return Object.fromEntries(state.notes.map((note) => [getNoteKey(note.date, note.room), note.text]));
 }
 
 function getMonthKeys() {
@@ -257,6 +298,10 @@ function getTodayDate() {
   }
   const dates = [...new Set(state.inventory.map((item) => item.date))].sort();
   return dates[0] || actualToday;
+}
+
+function getPreferredMonthKey() {
+  return getTodayDate().slice(0, 7);
 }
 
 function getRoomSnapshot(date) {
@@ -404,11 +449,35 @@ function setOptions(selectNode) {
 
 function renderSelectors() {
   setOptions(bookRoomType);
+  if (noteRoom) {
+    setOptions(noteRoom);
+  }
+}
+
+function getCalendarEventLabel(date, room) {
+  const occupiedToday = (availableStock(date, room) ?? 0) <= 0;
+  const occupiedYesterday = (availableStock(shiftDate(date, -1), room) ?? 0) <= 0;
+  const occupiedTomorrow = (availableStock(shiftDate(date, 1), room) ?? 0) <= 0;
+
+  if (!occupiedToday && occupiedYesterday) {
+    return { text: "退去", className: "check-out" };
+  }
+  if (occupiedToday && !occupiedYesterday) {
+    return { text: "入居", className: "check-in" };
+  }
+  if (occupiedToday && occupiedTomorrow) {
+    return null;
+  }
+  return null;
 }
 
 function renderCalendarSelectors() {
   const years = [...new Set(state.inventory.map((item) => item.date.slice(0, 4)))].sort();
-  const selectedYear = years.includes(calendarYearSelect.value) ? calendarYearSelect.value : years[years.length - 1];
+  const preferredMonthKey = getPreferredMonthKey();
+  const preferredYear = preferredMonthKey.slice(0, 4);
+  const selectedYear = years.includes(calendarYearSelect.value)
+    ? calendarYearSelect.value
+    : (years.includes(preferredYear) ? preferredYear : years[years.length - 1]);
   calendarYearSelect.innerHTML = years.map((year) => `<option value="${year}">${year}年</option>`).join("");
   if (selectedYear) {
     calendarYearSelect.value = selectedYear;
@@ -421,7 +490,10 @@ function renderCalendarSelectors() {
       .map((date) => date.slice(5, 7))
   )].sort();
 
-  const selectedMonth = months.includes(calendarMonthSelect.value) ? calendarMonthSelect.value : months[months.length - 1];
+  const preferredMonth = preferredMonthKey.slice(5, 7);
+  const selectedMonth = months.includes(calendarMonthSelect.value)
+    ? calendarMonthSelect.value
+    : (months.includes(preferredMonth) ? preferredMonth : months[months.length - 1]);
   calendarMonthSelect.innerHTML = months.map((month) => `<option value="${month}">${Number(month)}月</option>`).join("");
   if (selectedMonth) {
     calendarMonthSelect.value = selectedMonth;
@@ -447,6 +519,7 @@ function renderCalendar() {
 
   const rooms = getRoomTypes();
   const today = getTodayDate();
+  const noteMap = getNoteMap();
   const headerCells = dates.map((date) => `
     <th class="${date === today ? "is-today" : ""}">
       <span>${formatJaDate(date)}</span>
@@ -459,9 +532,15 @@ function renderCalendar() {
       const soldout = remaining !== null && remaining <= 0;
       const label = remaining === null ? "-" : soldout ? "埋" : "空";
       const className = remaining === null ? "unknown" : soldout ? "soldout" : "available";
+      const event = getCalendarEventLabel(date, room);
+      const note = noteMap[getNoteKey(date, room)];
       return `
         <td class="calendar-status ${className} ${date === today ? "is-today" : ""}">
-          <strong>${label}</strong>
+          <div class="calendar-cell-body">
+            <strong>${label}</strong>
+            ${event ? `<span class="calendar-event ${event.className}">${event.text}</span>` : ""}
+            ${note ? `<span class="calendar-note">${note}</span>` : ""}
+          </div>
         </td>
       `;
     }).join("");
@@ -500,8 +579,10 @@ function renderCalendar() {
 }
 
 function renderBookings() {
+  ensureBookingIds();
+
   if (!state.bookings.length) {
-    bookingTableBody.innerHTML = `<tr><td colspan="5">まだ予約は登録されていません。</td></tr>`;
+    bookingTableBody.innerHTML = `<tr><td colspan="8">まだ予約は登録されていません。</td></tr>`;
     return;
   }
 
@@ -510,10 +591,13 @@ function renderBookings() {
     .map((booking) => `
       <tr>
         <td>${booking.guest}</td>
+        <td>${booking.source || "-"}</td>
         <td>${booking.type}号室</td>
         <td>${booking.checkIn}</td>
         <td>${booking.checkOut}</td>
         <td>${nightsBetween(booking.checkIn, booking.checkOut).length}泊 / ${booking.guestTotal}人</td>
+        <td>${booking.memo || "-"}</td>
+        <td><button type="button" class="button secondary" onclick="window.cancelBookingById('${booking.id}')">取り消し</button></td>
       </tr>
     `)
     .join("");
@@ -610,16 +694,19 @@ function renderMonthSelectors() {
   monthSelect.innerHTML = options;
   compareMonthA.innerHTML = options;
   compareMonthB.innerHTML = options;
+  const preferredMonthKey = getPreferredMonthKey();
 
   if (monthKeys.length) {
     if (!monthKeys.includes(monthSelect.value)) {
-      monthSelect.value = monthKeys[monthKeys.length - 1];
+      monthSelect.value = monthKeys.includes(preferredMonthKey) ? preferredMonthKey : monthKeys[monthKeys.length - 1];
     }
     if (!monthKeys.includes(compareMonthA.value)) {
-      compareMonthA.value = monthKeys[Math.max(monthKeys.length - 2, 0)];
+      compareMonthA.value = monthKeys.includes(preferredMonthKey)
+        ? preferredMonthKey
+        : monthKeys[Math.max(monthKeys.length - 2, 0)];
     }
     if (!monthKeys.includes(compareMonthB.value)) {
-      compareMonthB.value = monthKeys[monthKeys.length - 1];
+      compareMonthB.value = monthKeys.includes(preferredMonthKey) ? preferredMonthKey : monthKeys[monthKeys.length - 1];
     }
   }
 }
@@ -681,6 +768,15 @@ function renderAll() {
   renderComparison();
 }
 
+function downloadCalendarPdf() {
+  document.body.classList.add("print-calendar");
+  activateTab("reservations");
+  window.print();
+  window.setTimeout(() => {
+    document.body.classList.remove("print-calendar");
+  }, 300);
+}
+
 function updateSettingsLockUi() {
   totalRoomsInput.disabled = !settingsUnlocked;
   unlockSettingsBtn.textContent = settingsUnlocked ? "解除中" : "ロック解除";
@@ -692,6 +788,20 @@ function activateTab(tabName) {
   });
   tabPanels.forEach((panel) => {
     panel.classList.toggle("active", panel.dataset.panel === tabName);
+  });
+}
+
+function focusTabPanel(tabName) {
+  const targetPanel = tabPanels.find((panel) => panel.dataset.panel === tabName);
+  if (!targetPanel) {
+    return;
+  }
+
+  window.requestAnimationFrame(() => {
+    targetPanel.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
   });
 }
 
@@ -779,11 +889,14 @@ bookingForm.addEventListener("submit", (event) => {
   event.preventDefault();
 
   const booking = {
+    id: createBookingId(),
     guest: document.getElementById("guestName").value.trim(),
     checkIn: document.getElementById("bookCheckIn").value,
     checkOut: document.getElementById("bookCheckOut").value,
     type: bookRoomType.value,
     guestTotal: Number(bookGuestCount.value),
+    source: bookingSource.value.trim(),
+    memo: bookingMemo.value.trim(),
   };
 
   if (!booking.guest) {
@@ -810,19 +923,66 @@ downloadInventoryBtn.addEventListener("click", () => {
 });
 
 downloadBookingsBtn.addEventListener("click", () => {
-  const csv = `guest,room,check_in,check_out,nights,guest_total\n${state.bookings.map((booking) => [
+  const csv = `guest,source,room,check_in,check_out,nights,guest_total,memo\n${state.bookings.map((booking) => [
     booking.guest,
+    booking.source || "",
     booking.type,
     booking.checkIn,
     booking.checkOut,
     nightsBetween(booking.checkIn, booking.checkOut).length,
     booking.guestTotal,
+    booking.memo || "",
   ].join(",")).join("\n")}`;
   download("bookings.csv", csv);
 });
 
+calendarNoteForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const payload = {
+    date: noteDate.value,
+    room: noteRoom.value,
+    text: noteText.value.trim(),
+  };
+
+  if (!payload.date || !payload.room || !payload.text) {
+    setResult(calendarNoteFeedback, "日付・部屋・注釈メモを入力してください。", "error");
+    return;
+  }
+
+  state.notes = state.notes.filter((note) => getNoteKey(note.date, note.room) !== getNoteKey(payload.date, payload.room));
+  state.notes.push(payload);
+  saveState();
+  renderCalendar();
+  calendarNoteForm.reset();
+  setResult(calendarNoteFeedback, `${payload.date} の ${payload.room}号室に注釈を保存しました。`, "ok");
+});
+
+downloadCalendarPdfBtn.addEventListener("click", downloadCalendarPdf);
+
+function cancelBookingById(bookingId) {
+  const targetBooking = state.bookings.find((booking) => booking.id === bookingId);
+  if (!targetBooking) {
+    return;
+  }
+
+  const confirmed = window.confirm(`${targetBooking.guest}様の予約を取り消しますか？`);
+  if (!confirmed) {
+    return;
+  }
+
+  state.bookings = state.bookings.filter((booking) => booking.id !== bookingId);
+  saveState();
+  renderAll();
+  setResult(bookingFeedback, `${targetBooking.guest}様の予約を取り消しました。`, "ok");
+}
+
+window.cancelBookingById = cancelBookingById;
+
 tabButtons.forEach((button) => {
-  button.addEventListener("click", () => activateTab(button.dataset.tab));
+  button.addEventListener("click", () => {
+    activateTab(button.dataset.tab);
+    focusTabPanel(button.dataset.tab);
+  });
 });
 
 monthSelect.addEventListener("change", renderMonthlySummary);
@@ -836,6 +996,7 @@ calendarMonthSelect.addEventListener("change", renderCalendar);
 
 function initialize() {
   loadState();
+  ensureBookingIds();
   activateTab("reservations");
   updateSettingsLockUi();
   renderAll();

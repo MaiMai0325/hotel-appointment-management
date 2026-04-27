@@ -217,6 +217,10 @@ textarea {
   gap: 8px;
 }
 
+.wide-field {
+  grid-column: 1 / -1;
+}
+
 .grid-form span {
   font-size: 0.92rem;
   color: var(--muted);
@@ -429,6 +433,98 @@ textarea {
   background: rgba(21, 94, 99, 0.08);
 }
 
+.calendar-cell-body {
+  display: grid;
+  gap: 6px;
+  justify-items: center;
+}
+
+.calendar-event {
+  font-size: 0.74rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.calendar-event.check-in {
+  color: var(--ok);
+}
+
+.calendar-event.check-out {
+  color: var(--accent-strong);
+}
+
+.calendar-note {
+  max-width: 92px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  background: #f3ede2;
+  color: var(--text);
+  font-size: 0.7rem;
+  line-height: 1.25;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.calendar-note-form {
+  margin-top: 16px;
+}
+
+.status-empty {
+  margin: 0;
+  color: var(--muted);
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #f7efe1;
+}
+
+.ops-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+}
+
+.ops-card {
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: #fffdfa;
+  padding: 16px;
+}
+
+.ops-label {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.ops-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+}
+
+.ops-list-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.inset-panel {
+  padding: 16px;
+}
+
+.compare-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
 .table-wrap {
   overflow-x: auto;
 }
@@ -478,7 +574,32 @@ th {
   .hero,
   .dashboard,
   .grid-form,
-  .settings-row {
+  .settings-row,
+  .ops-list-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  body.print-calendar .page-shell > header,
+  body.print-calendar .compact-panel,
+  body.print-calendar .tab-row,
+  body.print-calendar .tab-panel:not(.active),
+  body.print-calendar .tab-panel.active > :not(:nth-child(3)) {
+    display: none !important;
+  }
+
+  body.print-calendar .page-shell {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+  }
+
+  body.print-calendar .panel,
+  body.print-calendar .calendar-card,
+  body.print-calendar .calendar-matrix-wrap {
+    box-shadow: none;
+    border-color: #bbb;
+    background: #fff;
   }
 }
