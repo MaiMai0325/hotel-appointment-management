@@ -7,6 +7,21 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+  <div id="siteLockOverlay" class="site-lock-overlay">
+    <div class="site-lock-card">
+      <p class="eyebrow">Access</p>
+      <h2>森下ホテル 管理画面</h2>
+      <p class="muted">このサイトを開くにはパスワードが必要です。</p>
+      <form id="siteLockForm" class="site-lock-form">
+        <label>
+          <span>サイトパスワード</span>
+          <input type="password" id="sitePasswordInput" placeholder="パスワードを入力" required>
+        </label>
+        <button type="submit" class="button primary">サイトを開く</button>
+      </form>
+      <div id="siteLockFeedback" class="settings-feedback"></div>
+    </div>
+  </div>
   <div class="page-shell">
     <header class="hero">
       <div>
@@ -359,7 +374,7 @@
     <button id="downloadInventoryBtn" type="button">hidden download</button>
   </section>
 
-  <script src="preloaded-data.js?v=20260427f"></script>
-  <script src="script.js?v=20260427f"></script>
+  <script src="preloaded-data.js?v=20260427g"></script>
+  <script src="script.js?v=20260427g"></script>
 </body>
 </html>

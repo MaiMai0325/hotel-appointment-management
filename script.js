@@ -1,5 +1,7 @@
 const STORAGE_KEY = "hotel-dashboard-state";
 const DEFAULT_SETTINGS_PASSWORD = "inexus12345";
+const SITE_ACCESS_PASSWORD = "inexus12345";
+const SITE_UNLOCK_KEY = "morishita-site-unlocked";
 
 const state = {
   settings: {
@@ -70,6 +72,10 @@ const downloadCalendarPdfBtn = document.getElementById("downloadCalendarPdfBtn")
 const bookingTableBody = document.getElementById("bookingTableBody");
 const todaySummary = document.getElementById("todaySummary");
 const faqTemplates = document.getElementById("faqTemplates");
+const siteLockOverlay = document.getElementById("siteLockOverlay");
+const siteLockForm = document.getElementById("siteLockForm");
+const sitePasswordInput = document.getElementById("sitePasswordInput");
+const siteLockFeedback = document.getElementById("siteLockFeedback");
 const calendarYearSelect = document.getElementById("calendarYearSelect");
 const calendarMonthSelect = document.getElementById("calendarMonthSelect");
 const tabButtons = [...document.querySelectorAll(".tab-button")];
@@ -777,6 +783,30 @@ function downloadCalendarPdf() {
   }, 300);
 }
 
+function isSiteUnlocked() {
+  try {
+    return localStorage.getItem(SITE_UNLOCK_KEY) === "true";
+  } catch (error) {
+    return false;
+  }
+}
+
+function setSiteUnlocked(unlocked) {
+  try {
+    localStorage.setItem(SITE_UNLOCK_KEY, unlocked ? "true" : "false");
+  } catch (error) {
+    console.warn("site unlock persistence unavailable", error);
+  }
+}
+
+function updateSiteLockUi() {
+  const unlocked = isSiteUnlocked();
+  document.body.classList.toggle("site-locked", !unlocked);
+  if (siteLockOverlay) {
+    siteLockOverlay.classList.toggle("hidden", unlocked);
+  }
+}
+
 function updateSettingsLockUi() {
   totalRoomsInput.disabled = !settingsUnlocked;
   unlockSettingsBtn.textContent = settingsUnlocked ? "解除中" : "ロック解除";
@@ -959,6 +989,19 @@ calendarNoteForm.addEventListener("submit", (event) => {
 
 downloadCalendarPdfBtn.addEventListener("click", downloadCalendarPdf);
 
+siteLockForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (sitePasswordInput.value === SITE_ACCESS_PASSWORD) {
+    setSiteUnlocked(true);
+    updateSiteLockUi();
+    siteLockFeedback.textContent = "";
+    sitePasswordInput.value = "";
+    return;
+  }
+
+  siteLockFeedback.textContent = "サイトパスワードが違います。";
+});
+
 function cancelBookingById(bookingId) {
   const targetBooking = state.bookings.find((booking) => booking.id === bookingId);
   if (!targetBooking) {
@@ -997,6 +1040,7 @@ calendarMonthSelect.addEventListener("change", renderCalendar);
 function initialize() {
   loadState();
   ensureBookingIds();
+  updateSiteLockUi();
   activateTab("reservations");
   updateSettingsLockUi();
   renderAll();

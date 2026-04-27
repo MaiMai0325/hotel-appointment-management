@@ -28,6 +28,10 @@ body {
     linear-gradient(180deg, #f8f2e7 0%, var(--bg) 100%);
 }
 
+body.site-locked {
+  overflow: hidden;
+}
+
 code {
   font-family: "Consolas", monospace;
 }
@@ -36,6 +40,49 @@ code {
   width: min(1200px, calc(100% - 32px));
   margin: 0 auto;
   padding: 28px 0 48px;
+}
+
+.site-lock-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    linear-gradient(rgba(20, 31, 33, 0.78), rgba(20, 31, 33, 0.78)),
+    radial-gradient(circle at top left, rgba(21, 94, 99, 0.24), transparent 30%),
+    radial-gradient(circle at right, rgba(180, 91, 45, 0.24), transparent 26%),
+    #1d2324;
+}
+
+.site-lock-overlay.hidden {
+  display: none;
+}
+
+.site-lock-card {
+  width: min(420px, 100%);
+  padding: 28px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 252, 247, 0.96);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.28);
+}
+
+.site-lock-card h2 {
+  margin: 0 0 10px;
+}
+
+.site-lock-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.site-lock-form label {
+  display: grid;
+  gap: 8px;
 }
 
 .hero {
