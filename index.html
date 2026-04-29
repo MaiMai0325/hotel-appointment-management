@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>森下ホテル 予約管理</title>
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260429a">
 </head>
 <body>
   <div id="siteLockOverlay" class="site-lock-overlay">
@@ -22,20 +22,81 @@
       <div id="siteLockFeedback" class="settings-feedback"></div>
     </div>
   </div>
+  <header id="siteNav" class="site-nav">
+    <div class="site-nav-inner">
+      <div class="site-nav-brand">
+        <span class="site-nav-mark">M</span>
+        <div>
+          <strong>森下ホテル</strong>
+          <small>Reservation Desk</small>
+        </div>
+      </div>
+      <button id="mobileNavToggle" class="mobile-nav-toggle" type="button" aria-expanded="false" aria-controls="siteNavMenu">メニュー</button>
+      <div id="siteNavMenu" class="site-nav-menu">
+        <button class="tab-button active" data-tab="reservations">予約管理</button>
+        <button class="tab-button" data-tab="todayOps">本日の運用</button>
+        <button class="tab-button" data-tab="monthly">月次まとめ</button>
+        <button class="tab-button" data-tab="comparison">月比較</button>
+        <button class="tab-button" data-tab="faq">定型文</button>
+      </div>
+    </div>
+  </header>
   <div class="page-shell">
     <header class="hero">
+      <div class="hero-orb hero-orb-a"></div>
+      <div class="hero-orb hero-orb-b"></div>
       <div>
-        <p class="eyebrow">Hotel Inventory Desk</p>
-        <h1>森下ホテル 予約管理サイト</h1>
-        <p class="hero-copy">
+        <p class="eyebrow reveal-up">Hotel Inventory Desk</p>
+        <h1 class="hero-title reveal-up">森下ホテル 予約管理サイト</h1>
+        <p class="hero-copy reveal-up">
           森下ホテルの空室管理、予約受付、sold out 表示、Excelに近い運用の確認を1つの画面で行えます。
         </p>
+        <div class="hero-pills reveal-up">
+          <span class="hero-pill">6 Rooms</span>
+          <span class="hero-pill">Excel Sync</span>
+          <span class="hero-pill">Airbnb / Booking / Expedia</span>
+        </div>
       </div>
-      <div class="hero-card">
+      <div class="hero-card reveal-up">
         <p class="hero-card-label">今日の在庫サマリー</p>
         <div id="todaySummary" class="hero-card-value">読み込み中...</div>
+        <p class="hero-card-meta">日次運用から月次比較まで、この画面でそのまま確認できます。</p>
       </div>
     </header>
+
+    <section class="ops-strip">
+      <article class="ops-strip-card">
+        <p>今日のチェックイン</p>
+        <strong id="topCheckInCount">0</strong>
+      </article>
+      <article class="ops-strip-card">
+        <p>今日のチェックアウト</p>
+        <strong id="topCheckOutCount">0</strong>
+      </article>
+      <article class="ops-strip-card">
+        <p>今日の清掃予定</p>
+        <strong id="topCleaningCount">0</strong>
+      </article>
+    </section>
+
+    <section class="alert-strip">
+      <article class="alert-card">
+        <p>未払い</p>
+        <strong id="unpaidAlertCount">0</strong>
+      </article>
+      <article class="alert-card">
+        <p>未清掃</p>
+        <strong id="uncleanedAlertCount">0</strong>
+      </article>
+      <article class="alert-card">
+        <p>身分証未確認</p>
+        <strong id="idPendingAlertCount">0</strong>
+      </article>
+      <article class="alert-card">
+        <p>案内未送信</p>
+        <strong id="guidePendingAlertCount">0</strong>
+      </article>
+    </section>
 
     <main class="dashboard">
       <section class="panel compact-panel wide">
@@ -61,10 +122,16 @@
         <div id="settingsFeedback" class="settings-feedback">現在は 6 部屋で設定しています。</div>
         <p class="settings-feedback">在庫はExcel連携データを使う前提にして、手入力欄は画面から外しています。</p>
         <p class="settings-feedback">最新のExcelを反映するときは、このフォルダの <code>sync-and-open.bat</code> を実行してください。</p>
+        <div class="settings-utility-row">
+          <button id="backupJsonBtn" type="button" class="button secondary">JSONバックアップ</button>
+          <button id="restoreJsonBtn" type="button" class="button secondary">JSON復元</button>
+          <input id="restoreJsonInput" type="file" accept="application/json" hidden>
+        </div>
+        <p class="settings-feedback">チェックアウト日は空室扱いです。同じ部屋でも、既存予約のチェックアウト日と新規予約のチェックイン日が同じ場合は重複扱いにしません。</p>
       </section>
 
       <section class="tabs-shell wide">
-        <div class="tab-row">
+        <div class="tab-row tab-row-inline">
           <button class="tab-button active" data-tab="reservations">予約管理</button>
           <button class="tab-button" data-tab="todayOps">本日の運用</button>
           <button class="tab-button" data-tab="monthly">月次まとめ</button>
@@ -116,16 +183,8 @@
                 <input type="text" id="guestName" placeholder="例: 田中様" required>
               </label>
               <label>
-                <span>チェックイン</span>
-                <input type="date" id="bookCheckIn" required>
-              </label>
-              <label>
-                <span>チェックアウト</span>
-                <input type="date" id="bookCheckOut" required>
-              </label>
-              <label>
-                <span>部屋番号</span>
-                <select id="bookRoomType"></select>
+                <span>予約サイト</span>
+                <input type="text" id="bookingSource" list="bookingSourceOptions" placeholder="Airbnb / Booking.com / Expedia / 携程" required>
               </label>
               <label>
                 <span>人数</span>
@@ -137,9 +196,34 @@
                 </select>
               </label>
               <label>
-                <span>予約元</span>
-                <input type="text" id="bookingSource" list="bookingSourceOptions" placeholder="Airbnb / Booking.com / Expedia">
+                <span>部屋</span>
+                <select id="bookRoomType"></select>
               </label>
+              <label>
+                <span>チェックイン</span>
+                <input type="date" id="bookCheckIn" required>
+              </label>
+              <label>
+                <span>チェックアウト</span>
+                <input type="date" id="bookCheckOut" required>
+              </label>
+              <label>
+                <span>料金</span>
+                <input type="number" id="bookingAmount" min="0" step="1" placeholder="例: 28000">
+              </label>
+              <label>
+                <span>支払い状況</span>
+                <select id="paymentStatus">
+                  <option value="未払い">未払い</option>
+                  <option value="一部入金">一部入金</option>
+                  <option value="支払い済み">支払い済み</option>
+                </select>
+              </label>
+              <fieldset class="status-checklist wide-field">
+                <legend>対応ステータス</legend>
+                <label><input type="checkbox" id="idVerified"> 身分証確認済み</label>
+                <label><input type="checkbox" id="checkInGuideSent"> チェックイン案内送信済み</label>
+              </fieldset>
               <label class="wide-field">
                 <span>予約メモ</span>
                 <input type="text" id="bookingMemo" placeholder="例: 加湿器希望、タオル多め、子ども連れ">
@@ -150,6 +234,8 @@
               <option value="Airbnb"></option>
               <option value="Booking.com"></option>
               <option value="Expedia"></option>
+              <option value="携程"></option>
+              <option value="Agoda"></option>
               <option value="じゃらん"></option>
               <option value="楽天トラベル"></option>
               <option value="直接予約"></option>
@@ -202,16 +288,70 @@
                 <h2>確定済みの予約</h2>
               </div>
             </div>
+            <div class="booking-toolbar">
+              <label>
+                <span>検索</span>
+                <input type="text" id="bookingSearchInput" placeholder="宿泊者名 / 予約サイト / 部屋 / メモ">
+              </label>
+              <label>
+                <span>予約サイト</span>
+                <select id="bookingSourceFilter">
+                  <option value="">すべて</option>
+                  <option value="Airbnb">Airbnb</option>
+                  <option value="Booking.com">Booking.com</option>
+                  <option value="Expedia">Expedia</option>
+                  <option value="携程">携程</option>
+                  <option value="Agoda">Agoda</option>
+                  <option value="じゃらん">じゃらん</option>
+                  <option value="楽天トラベル">楽天トラベル</option>
+                  <option value="直接予約">直接予約</option>
+                </select>
+              </label>
+              <label>
+                <span>支払い</span>
+                <select id="bookingPaymentFilter">
+                  <option value="">すべて</option>
+                  <option value="未払い">未払い</option>
+                  <option value="一部入金">一部入金</option>
+                  <option value="支払い済み">支払い済み</option>
+                </select>
+              </label>
+              <label>
+                <span>清掃</span>
+                <select id="bookingCleaningFilter">
+                  <option value="">すべて</option>
+                  <option value="未清掃">未清掃</option>
+                  <option value="清掃予定">清掃予定</option>
+                  <option value="清掃済み">清掃済み</option>
+                </select>
+              </label>
+              <label>
+                <span>並び替え</span>
+                <select id="bookingSortSelect">
+                  <option value="checkin-asc">チェックインが早い順</option>
+                  <option value="checkin-desc">チェックインが新しい順</option>
+                  <option value="checkout-asc">チェックアウトが早い順</option>
+                  <option value="guest-asc">名前順</option>
+                  <option value="amount-desc">料金が高い順</option>
+                  <option value="amount-asc">料金が低い順</option>
+                </select>
+              </label>
+            </div>
+            <div id="bookingListSummary" class="booking-list-summary"></div>
             <div class="table-wrap">
               <table>
                 <thead>
                   <tr>
                     <th>予約者名</th>
-                    <th>予約元</th>
+                    <th>予約サイト</th>
                     <th>部屋番号</th>
                     <th>チェックイン</th>
                     <th>チェックアウト</th>
-                    <th>宿泊日数</th>
+                    <th>人数</th>
+                    <th>料金</th>
+                    <th>支払い</th>
+                    <th>清掃</th>
+                    <th>対応</th>
                     <th>メモ</th>
                     <th>操作</th>
                   </tr>
@@ -289,6 +429,10 @@
               <article class="ops-card">
                 <p class="ops-label">予約件数</p>
                 <div id="monthBookings" class="ops-value">0</div>
+              </article>
+              <article class="ops-card">
+                <p class="ops-label">売上</p>
+                <div id="monthRevenue" class="ops-value">¥0</div>
               </article>
               <article class="ops-card">
                 <p class="ops-label">平均空室数/日</p>
@@ -374,7 +518,7 @@
     <button id="downloadInventoryBtn" type="button">hidden download</button>
   </section>
 
-  <script src="preloaded-data.js?v=20260427m"></script>
-  <script src="script.js?v=20260427m"></script>
+  <script src="preloaded-data.js?v=20260429a"></script>
+  <script src="script.js?v=20260429a"></script>
 </body>
 </html>
