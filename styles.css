@@ -494,7 +494,7 @@ textarea {
 
 .status-checklist {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 10px 14px;
   padding: 14px 16px;
   margin: 0;
@@ -1198,7 +1198,7 @@ th {
 
 .booking-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1.5fr) repeat(4, minmax(140px, 1fr));
+  grid-template-columns: minmax(220px, 1.5fr) repeat(6, minmax(120px, 1fr));
   gap: 12px;
   margin-bottom: 14px;
 }

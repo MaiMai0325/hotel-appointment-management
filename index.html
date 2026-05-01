@@ -215,14 +215,16 @@
                 <span>支払い状況</span>
                 <select id="paymentStatus">
                   <option value="未払い">未払い</option>
-                  <option value="一部入金">一部入金</option>
                   <option value="支払い済み">支払い済み</option>
+                  <option value="現地払い">現地払い</option>
+                  <option value="返金済み">返金済み</option>
                 </select>
               </label>
               <fieldset class="status-checklist wide-field">
                 <legend>対応ステータス</legend>
                 <label><input type="checkbox" id="idVerified"> 身分証確認済み</label>
                 <label><input type="checkbox" id="checkInGuideSent"> チェックイン案内送信済み</label>
+                <label><input type="checkbox" id="reviewRequestSent"> レビュー依頼済み</label>
               </fieldset>
               <label class="wide-field">
                 <span>予約メモ</span>
@@ -288,7 +290,7 @@
                 <h2>確定済みの予約</h2>
               </div>
             </div>
-            <div class="booking-toolbar">
+            <div id="bookingToolbar" class="booking-toolbar">
               <label>
                 <span>検索</span>
                 <input type="text" id="bookingSearchInput" placeholder="宿泊者名 / 予約サイト / 部屋 / メモ">
@@ -308,12 +310,25 @@
                 </select>
               </label>
               <label>
+                <span>部屋番号</span>
+                <select id="bookingRoomFilter">
+                  <option value="">すべて</option>
+                </select>
+              </label>
+              <label>
+                <span>月</span>
+                <select id="bookingMonthFilter">
+                  <option value="">すべて</option>
+                </select>
+              </label>
+              <label>
                 <span>支払い</span>
                 <select id="bookingPaymentFilter">
                   <option value="">すべて</option>
                   <option value="未払い">未払い</option>
-                  <option value="一部入金">一部入金</option>
                   <option value="支払い済み">支払い済み</option>
+                  <option value="現地払い">現地払い</option>
+                  <option value="返金済み">返金済み</option>
                 </select>
               </label>
               <label>
@@ -351,6 +366,7 @@
                     <th>料金</th>
                     <th>支払い</th>
                     <th>清掃</th>
+                    <th>清掃メモ</th>
                     <th>対応</th>
                     <th>メモ</th>
                     <th>操作</th>

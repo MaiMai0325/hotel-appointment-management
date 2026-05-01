@@ -69,6 +69,7 @@ const bookingAmount = document.getElementById("bookingAmount");
 const paymentStatus = document.getElementById("paymentStatus");
 const idVerified = document.getElementById("idVerified");
 const checkInGuideSent = document.getElementById("checkInGuideSent");
+const reviewRequestSent = document.getElementById("reviewRequestSent");
 const bookingMemo = document.getElementById("bookingMemo");
 const calendarGrid = document.getElementById("calendarGrid");
 const calendarNoteForm = document.getElementById("calendarNoteForm");
@@ -80,10 +81,13 @@ const downloadCalendarPdfBtn = document.getElementById("downloadCalendarPdfBtn")
 const bookingTableBody = document.getElementById("bookingTableBody");
 const bookingSearchInput = document.getElementById("bookingSearchInput");
 const bookingSourceFilter = document.getElementById("bookingSourceFilter");
+const bookingRoomFilter = document.getElementById("bookingRoomFilter");
+const bookingMonthFilter = document.getElementById("bookingMonthFilter");
 const bookingPaymentFilter = document.getElementById("bookingPaymentFilter");
 const bookingCleaningFilter = document.getElementById("bookingCleaningFilter");
 const bookingSortSelect = document.getElementById("bookingSortSelect");
 const bookingListSummary = document.getElementById("bookingListSummary");
+const bookingToolbar = document.getElementById("bookingToolbar");
 const todaySummary = document.getElementById("todaySummary");
 const faqTemplates = document.getElementById("faqTemplates");
 const siteNav = document.getElementById("siteNav");
@@ -181,6 +185,17 @@ function formatCurrency(amount) {
   return `¥${value.toLocaleString("ja-JP")}`;
 }
 
+function normalizePaymentStatus(status) {
+  const value = String(status || "").trim();
+  if (!value || value === "一部入金") {
+    return "未払い";
+  }
+  if (["未払い", "支払い済み", "現地払い", "返金済み"].includes(value)) {
+    return value;
+  }
+  return "未払い";
+}
+
 function createBookingId() {
   return `booking-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
 }
@@ -200,13 +215,19 @@ function ensureBookingIds() {
       changed = true;
     }
 
-    if (!nextBooking.paymentStatus) {
-      nextBooking.paymentStatus = "未払い";
+    const normalizedPaymentStatus = normalizePaymentStatus(nextBooking.paymentStatus);
+    if (nextBooking.paymentStatus !== normalizedPaymentStatus) {
+      nextBooking.paymentStatus = normalizedPaymentStatus;
       changed = true;
     }
 
     if (!nextBooking.cleaningStatus) {
       nextBooking.cleaningStatus = "未清掃";
+      changed = true;
+    }
+
+    if (typeof nextBooking.cleaningMemo !== "string") {
+      nextBooking.cleaningMemo = String(nextBooking.cleaningMemo || "");
       changed = true;
     }
 
@@ -217,6 +238,11 @@ function ensureBookingIds() {
 
     if (typeof nextBooking.checkInGuideSent !== "boolean") {
       nextBooking.checkInGuideSent = false;
+      changed = true;
+    }
+
+    if (typeof nextBooking.reviewRequestSent !== "boolean") {
+      nextBooking.reviewRequestSent = false;
       changed = true;
     }
 
@@ -527,6 +553,9 @@ function getBookingTaskSummary(booking) {
   if (!booking.checkInGuideSent) {
     pending.push("案内未送信");
   }
+  if (!booking.reviewRequestSent) {
+    pending.push("レビュー依頼未送信");
+  }
   return pending.length ? pending.join(" / ") : "対応済み";
 }
 
@@ -534,6 +563,8 @@ function getBookingFilterState() {
   return {
     query: (bookingSearchInput?.value || "").trim().toLowerCase(),
     source: bookingSourceFilter?.value || "",
+    room: bookingRoomFilter?.value || "",
+    month: bookingMonthFilter?.value || "",
     paymentStatus: bookingPaymentFilter?.value || "",
     cleaningStatus: bookingCleaningFilter?.value || "",
     sortKey: bookingSortSelect?.value || "checkin-asc",
@@ -577,9 +608,11 @@ function getVisibleBookings() {
       .some((value) => value.includes(filters.query));
 
     const matchesSource = !filters.source || normalizeBookingSource(booking.source) === normalizeBookingSource(filters.source);
+    const matchesRoom = !filters.room || String(booking.type) === String(filters.room);
+    const matchesMonth = !filters.month || booking.checkIn.startsWith(filters.month) || booking.checkOut.startsWith(filters.month);
     const matchesPayment = !filters.paymentStatus || booking.paymentStatus === filters.paymentStatus;
     const matchesCleaning = !filters.cleaningStatus || booking.cleaningStatus === filters.cleaningStatus;
-    return matchesQuery && matchesSource && matchesPayment && matchesCleaning;
+    return matchesQuery && matchesSource && matchesRoom && matchesMonth && matchesPayment && matchesCleaning;
   });
 
   return sortBookings(filtered, filters.sortKey);
@@ -681,9 +714,24 @@ function setOptions(selectNode) {
 }
 
 function renderSelectors() {
+  const previousRoomFilter = bookingRoomFilter?.value || "";
+  const previousMonthFilter = bookingMonthFilter?.value || "";
   setOptions(bookRoomType);
   if (noteRoom) {
     setOptions(noteRoom);
+  }
+  if (bookingRoomFilter) {
+    bookingRoomFilter.innerHTML = `<option value="">すべて</option>${getRoomTypes().map((room) => `<option value="${room}">${room}号室</option>`).join("")}`;
+    if ([...bookingRoomFilter.options].some((option) => option.value === previousRoomFilter)) {
+      bookingRoomFilter.value = previousRoomFilter;
+    }
+  }
+  if (bookingMonthFilter) {
+    const bookingMonths = [...new Set(state.bookings.flatMap((booking) => [booking.checkIn.slice(0, 7), booking.checkOut.slice(0, 7)]).filter(Boolean))].sort();
+    bookingMonthFilter.innerHTML = `<option value="">すべて</option>${bookingMonths.map((monthKey) => `<option value="${monthKey}">${formatMonthLabel(monthKey)}</option>`).join("")}`;
+    if ([...bookingMonthFilter.options].some((option) => option.value === previousMonthFilter)) {
+      bookingMonthFilter.value = previousMonthFilter;
+    }
   }
 }
 
@@ -821,12 +869,16 @@ function renderCalendar() {
 function renderBookings() {
   ensureBookingIds();
 
+  if (bookingToolbar) {
+    bookingToolbar.hidden = state.bookings.length === 0;
+  }
   if (bookingListSummary) {
+    bookingListSummary.hidden = state.bookings.length === 0;
     bookingListSummary.textContent = "";
   }
 
   if (!state.bookings.length) {
-    bookingTableBody.innerHTML = `<tr><td colspan="12">まだ予約は登録されていません。</td></tr>`;
+    bookingTableBody.innerHTML = `<tr><td colspan="13">まだ予約は登録されていません。</td></tr>`;
     return;
   }
 
@@ -837,7 +889,7 @@ function renderBookings() {
   }
 
   if (!visibleBookings.length) {
-    bookingTableBody.innerHTML = `<tr><td colspan="12">条件に合う予約はありません。</td></tr>`;
+    bookingTableBody.innerHTML = `<tr><td colspan="13">条件に合う予約はありません。</td></tr>`;
     return;
   }
 
@@ -883,8 +935,9 @@ function renderBookings() {
             data-booking-id="${booking.id}"
           >
             <option value="未払い" ${booking.paymentStatus === "未払い" ? "selected" : ""}>未払い</option>
-            <option value="一部入金" ${booking.paymentStatus === "一部入金" ? "selected" : ""}>一部入金</option>
             <option value="支払い済み" ${booking.paymentStatus === "支払い済み" ? "selected" : ""}>支払い済み</option>
+            <option value="現地払い" ${booking.paymentStatus === "現地払い" ? "selected" : ""}>現地払い</option>
+            <option value="返金済み" ${booking.paymentStatus === "返金済み" ? "selected" : ""}>返金済み</option>
           </select>
         </td>
         <td>
@@ -899,6 +952,16 @@ function renderBookings() {
           </select>
         </td>
         <td>
+          <input
+            type="text"
+            class="booking-inline-input"
+            data-booking-field="cleaningMemo"
+            data-booking-id="${booking.id}"
+            value="${booking.cleaningMemo || ""}"
+            placeholder="清掃メモ"
+          >
+        </td>
+        <td>
           <div class="status-mini-grid">
             <label class="status-mini-item">
               <input type="checkbox" data-booking-field="idVerified" data-booking-id="${booking.id}" ${booking.idVerified ? "checked" : ""}>
@@ -907,6 +970,10 @@ function renderBookings() {
             <label class="status-mini-item">
               <input type="checkbox" data-booking-field="checkInGuideSent" data-booking-id="${booking.id}" ${booking.checkInGuideSent ? "checked" : ""}>
               <span>案内</span>
+            </label>
+            <label class="status-mini-item">
+              <input type="checkbox" data-booking-field="reviewRequestSent" data-booking-id="${booking.id}" ${booking.reviewRequestSent ? "checked" : ""}>
+              <span>レビュー</span>
             </label>
           </div>
           <div class="booking-status-summary">${getBookingTaskSummary(booking)}</div>
@@ -1306,10 +1373,12 @@ bookingForm.addEventListener("submit", (event) => {
     guestTotal: Number(bookGuestCount.value),
     source: bookingSource.value.trim(),
     amount: Number(bookingAmount.value) || 0,
-    paymentStatus: paymentStatus.value,
+    paymentStatus: normalizePaymentStatus(paymentStatus.value),
     cleaningStatus: "未清掃",
+    cleaningMemo: "",
     idVerified: Boolean(idVerified?.checked),
     checkInGuideSent: Boolean(checkInGuideSent?.checked),
+    reviewRequestSent: Boolean(reviewRequestSent?.checked),
     memo: bookingMemo.value.trim(),
   };
 
@@ -1344,7 +1413,7 @@ downloadInventoryBtn.addEventListener("click", () => {
 });
 
 downloadBookingsBtn.addEventListener("click", () => {
-  const csv = `guest,source,room,check_in,check_out,nights,guest_total,amount,payment_status,cleaning_status,id_verified,guide_sent,memo\n${state.bookings.map((booking) => [
+  const csv = `guest,source,room,check_in,check_out,nights,guest_total,amount,payment_status,cleaning_status,cleaning_memo,id_verified,guide_sent,review_request_sent,memo\n${state.bookings.map((booking) => [
     booking.guest,
     booking.source || "",
     booking.type,
@@ -1355,8 +1424,10 @@ downloadBookingsBtn.addEventListener("click", () => {
     Number(booking.amount) || 0,
     booking.paymentStatus || "",
     booking.cleaningStatus || "",
+    booking.cleaningMemo || "",
     booking.idVerified ? "1" : "0",
     booking.checkInGuideSent ? "1" : "0",
+    booking.reviewRequestSent ? "1" : "0",
     booking.memo || "",
   ].join(",")).join("\n")}`;
   download("bookings.csv", csv);
@@ -1464,21 +1535,25 @@ function saveBookingMeta(bookingId) {
   const amountInput = document.querySelector(`[data-booking-field="amount"][data-booking-id="${bookingId}"]`);
   const paymentStatusInput = document.querySelector(`[data-booking-field="paymentStatus"][data-booking-id="${bookingId}"]`);
   const cleaningStatusInput = document.querySelector(`[data-booking-field="cleaningStatus"][data-booking-id="${bookingId}"]`);
+  const cleaningMemoInput = document.querySelector(`[data-booking-field="cleaningMemo"][data-booking-id="${bookingId}"]`);
   const idVerifiedInput = document.querySelector(`[data-booking-field="idVerified"][data-booking-id="${bookingId}"]`);
   const checkInGuideSentInput = document.querySelector(`[data-booking-field="checkInGuideSent"][data-booking-id="${bookingId}"]`);
+  const reviewRequestSentInput = document.querySelector(`[data-booking-field="reviewRequestSent"][data-booking-id="${bookingId}"]`);
   const memoInput = document.querySelector(`[data-booking-field="memo"][data-booking-id="${bookingId}"]`);
   const booking = state.bookings.find((item) => item.id === bookingId);
 
-  if (!booking || !sourceInput || !amountInput || !paymentStatusInput || !cleaningStatusInput || !idVerifiedInput || !checkInGuideSentInput || !memoInput) {
+  if (!booking || !sourceInput || !amountInput || !paymentStatusInput || !cleaningStatusInput || !cleaningMemoInput || !idVerifiedInput || !checkInGuideSentInput || !reviewRequestSentInput || !memoInput) {
     return;
   }
 
   booking.source = sourceInput.value.trim();
   booking.amount = Number(amountInput.value) || 0;
-  booking.paymentStatus = paymentStatusInput.value;
+  booking.paymentStatus = normalizePaymentStatus(paymentStatusInput.value);
   booking.cleaningStatus = cleaningStatusInput.value;
+  booking.cleaningMemo = cleaningMemoInput.value.trim();
   booking.idVerified = idVerifiedInput.checked;
   booking.checkInGuideSent = checkInGuideSentInput.checked;
+  booking.reviewRequestSent = reviewRequestSentInput.checked;
   booking.memo = memoInput.value.trim();
   saveState();
   renderAll();
@@ -1491,6 +1566,8 @@ window.saveBookingMeta = saveBookingMeta;
 [
   [bookingSearchInput, "input"],
   [bookingSourceFilter, "change"],
+  [bookingRoomFilter, "change"],
+  [bookingMonthFilter, "change"],
   [bookingPaymentFilter, "change"],
   [bookingCleaningFilter, "change"],
   [bookingSortSelect, "change"],
